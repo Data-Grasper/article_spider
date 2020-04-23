@@ -30,6 +30,7 @@ class TianYaSpider(CrawlSpider):
         self.browser = webdriver.Chrome()
 
     def parse_search(self, response):
+        currentPage = int((response.url).split("pn=")[-1])
         texts = response.xpath("//div[@class='searchListOne']//div").extract()
         for text in texts:
             urls = []
@@ -43,12 +44,21 @@ class TianYaSpider(CrawlSpider):
                     callback=self.parse_detail
                 )
 
+        nextText = response.xpath("//div[@class='long-pages']").extract()[0]
+        nextText = re.sub(r'\s*', "", nextText)
+        nextText = [i for i in re.sub(r'<[^>]+>', "\n", nextText).split("\n") if i != ""]
+        lastPage = int(nextText[-2])
+        if currentPage < lastPage:
+            yield scrapy.Request(
+                url=(response.url).split("&pn=")[0]+"&pn="+str(currentPage+1),
+                callback=self.parse_search
+            )
 
     def parse_detail(self, response):
         title = response.xpath("//span[@class='s_title']").extract()
-        title = response.xpath("//div[@class='q-title']").extract() if len(title) < 1 else title
-        title = re.sub(r'<[^>]+>',"", title[0])
-        title = re.sub(r'\s*', "", title)
+        title = response.xpath("//div[@class='q-title']").extract() if len(title) < 1 else None
+        title = re.sub(r'<[^>]+>',"", title[0]) if title !=None else title
+        title = re.sub(r'\s*', "", title) if title !=None else title
 
         mainContent = response.xpath("//div[@class='bbs-content clearfix']").extract()
         mainContent = re.sub(r'<[^>]+>',"",mainContent[0]) if len(mainContent)>0 else None
@@ -69,6 +79,8 @@ class TianYaSpider(CrawlSpider):
                 m1 = re.sub(r'\s*', "", m1[:index])
                 m1 = re.sub(r'<[^>]+>',"",m1)
                 comments.append(m1)
+
+
         return
 
     def start_requests(self):
@@ -79,28 +91,9 @@ class TianYaSpider(CrawlSpider):
         self.browser.execute_script("document.getElementsByClassName('top-search-submit')[0].click()")
 
 
-
-        #self.browser.find_element_by_xpath("//input[@name='password']").send_keys(Keys.CONTROL + 'a')
-        #self.browser.find_element_by_xpath("//input[@name='password']").send_keys('pachong101')
         yield scrapy.Request(
-            url=self.browser.current_url,
+            url=self.browser.current_url+"&pn=1",
             callback=self.parse_search
         )
 
-        '''
-        urls = response.xpath("//a/@href").extract()
-        urls = [url for url in urls if url.startswith('/question')]
 
-        for url in urls:
-            print(url)
-            match = re.match('/question/(\d+).*', url)
-            if match:
-                qid = match.group(1)
-                yield scrapy.Request(
-                    url=ZHIHU_QUESTION_API_TEMPLATE.format(qid),
-                    callback=self.parse_question,
-                    meta={'question': qid}
-                )
-
-        return [scrapy.Request(url=self.start_urls[0], dont_filter=True)]
-        '''
