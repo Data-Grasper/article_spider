@@ -56,3 +56,41 @@ class CNBlogArticleItem(scrapy.Item):
 
         return insert_sql, params
 
+class TianyaItem(scrapy.Item):
+    '''
+    *******
+    此处未写好！！！
+    *******
+
+    '''
+    # id
+    post_id = scrapy.Field()
+    # title
+    title = scrapy.Field()
+    # time
+    create_time = scrapy.Field(input_processor = MapCompose(data_convert))
+    # content
+    main_content = scrapy.Field()
+    # tags
+    tags = scrapy.Field(output_processor = Join(','))
+    # extra
+    commentCount = scrapy.Field()
+
+    def get_sql(self):
+        insert_sql = '''
+            insert into article (post_id, title, create_time, content, tags, comment_count, total_view, front_image_url, front_image_path)
+            values(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON DUPLICATE key update content=VALUES(content), title=VALUES(title);
+        '''
+        params = []
+        params.append(self.get('post_id'))
+        params.append(self.get('title', ''))
+        params.append(self.get('create_time', '1970-1-1'))
+        params.append(self.get('content', ''))
+        params.append(self.get('tags', ''))
+        params.append(self.get('commentCount', 0))
+        params.append(self.get('totalView', 0))
+        params.append(self.get('front_image_url', ''))
+        params.append(self.get('front_image_path', ''))
+
+        return insert_sql, params
